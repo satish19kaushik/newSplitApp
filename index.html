@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpenseSplit - Group Expense Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-wallet"></i>
+                <span>ExpenseSplit</span>
+            </div>
+            <button class="theme-toggle" id="theme-toggle">
+                <i class="fas fa-moon"></i>
+            </button>
+            <div class="auth-panel" style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+                <span id="user-email" style="font-size:13px;color:#555;"></span>
+                <button class="btn" id="login-btn" style="display:none;">Login with Google</button>
+                <button class="btn" id="logout-btn" style="display:none;">Logout</button>
+            </div>
+        </header>
+
+        <div class="dashboard">
+            <div class="groups-panel">
+                <div class="groups-header">
+                    <div class="groups-count">
+                        <span>My Groups</span>
+                        <span class="count-badge" id="groups-count">0</span>
+                    </div>
+                    <button class="btn" id="add-group-btn">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Group</span>
+                    </button>
+                </div>
+                <div class="groups-list" id="groups-list">
+                    <!-- Groups will be dynamically added here -->
+                </div>
+            </div>
+
+            <div class="content-panel">
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-icon">
+                        <i class="fas fa-hand-holding-dollar"></i>
+                    </div>
+                    <h1 class="welcome-title">Welcome to ExpenseSplit</h1>
+                    <p class="welcome-subtitle">Create a group to get started tracking and splitting expenses with your friends, family, or colleagues.</p>
+                    <button class="btn" id="welcome-add-group-btn">
+                        <i class="fas fa-plus"></i>
+                        <span>Create Your First Group</span>
+                    </button>
+                </div>
+
+                <div class="group-details" id="group-details">
+                    <div class="group-details-header">
+                        <h2 class="group-details-title" id="group-name">Group Name</h2>
+                        <div class="group-actions">
+                            <button class="btn btn-warning" id="edit-group-btn">
+                                <i class="fas fa-edit"></i>
+                                <span>Edit Group</span>
+                            </button>
+                            <button class="btn btn-danger" id="delete-group-btn">
+                                <i class="fas fa-trash"></i>
+                                <span>Delete</span>
+                            </button>
+                            <button class="btn btn-secondary" id="generate-report-btn">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                <span>Generate Report</span>
+                            </button>
+                            <button class="btn" id="add-expense-btn">
+                                <i class="fas fa-plus"></i>
+                                <span>Add Expense</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="group-info">
+                        <div class="info-block">
+                            <div class="info-block-title">Members</div>
+                            <div class="info-block-value" id="members-count">0</div>
+                        </div>
+                        <div class="info-block">
+                            <div class="info-block-title">Total Expenses</div>
+                            <div class="info-block-value" id="total-expenses">$0.00</div>
+                        </div>
+                        <div class="info-block">
+                            <div class="info-block-title">Last Updated</div>
+                            <div class="info-block-value" id="last-updated">-</div>
+                        </div>
+                    </div>
+
+                    <div class="expenses-container">
+                        <div class="expenses-header">
+                            <h3 class="expenses-title">Expenses</h3>
+                            <button class="btn" id="share-expenses-btn" title="Share Expenses" style="margin-left:8px;">
+                                <i class="fas fa-share" style="cursor:pointer;"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="expense-list" id="expense-list">
+                            <!-- Expenses will be dynamically added here -->
+                            <div class="empty-state" id="empty-expenses">
+                                <div class="empty-icon">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                </div>
+                                <div class="empty-text">No expenses yet. Add your first expense!</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="balances-container">
+                        <div class="balances-header">
+                            <h3 class="balances-title">Current Balances</h3>
+                        </div>
+                        
+                        <div class="balance-list" id="balance-list">
+                            <!-- Balances will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Group Modal -->
+    <div class="modal-overlay" id="add-group-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="group-modal-title">Create New Group</h3>
+                <button class="modal-close" id="close-add-group-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="add-group-form">
+                    <div class="form-group">
+                        <label class="form-label" for="group-name-input">Group Name</label>
+                        <input type="text" class="form-control" id="group-name-input" placeholder="e.g. Weekend Trip, Roommates, etc." required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Group Members</label>
+                        <div class="member-input-container">
+                            <input type="text" class="form-control" id="member-input" placeholder="Add member name">
+                            <button type="button" class="btn" id="add-member-btn">Add</button>
+                        </div>
+                        <div class="form-members" id="members-list">
+                            <!-- Members will be dynamically added here -->
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-text" id="cancel-add-group">Cancel</button>
+                <button class="btn" id="save-group-btn">Create Group</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Expense Modal -->
+    <div class="modal-overlay" id="add-expense-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New Expense</h3>
+                <button class="modal-close" id="close-add-expense-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="add-expense-form">
+                    <div class="form-group">
+                        <label class="form-label" for="expense-name-input">Expense Description</label>
+                        <input type="text" class="form-control" id="expense-name-input" placeholder="e.g. Dinner, Movie tickets, etc." required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="expense-amount-input">Amount</label>
+                        <input type="number" step="0.01" min="0.01" class="form-control" id="expense-amount-input" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="expense-payer-input">Paid by</label>
+                        <select class="form-control" id="expense-payer-input" required>
+                            <!-- Group members will be dynamically added here -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Split Method</label>
+                        <div class="split-options">
+                            <label class="split-option">
+                                <input type="radio" name="split-method" value="equal" checked> Split equally
+                            </label>
+                            <label class="split-option">
+                                <input type="radio" name="split-method" value="custom"> Custom amounts
+                            </label>
+                        </div>
+                        <div class="custom-split" id="custom-split-container" style="display: none;">
+                            <!-- Custom split inputs will be dynamically added here -->
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="expense-date-input">Date</label>
+                        <input type="date" class="form-control" id="expense-date-input" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-text" id="cancel-add-expense">Cancel</button>
+                <button class="btn" id="save-expense-btn">Add Expense</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generate Report Modal -->
+    <div class="modal-overlay" id="report-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Expense Report <i class="fas fa-share" style="cursor: pointer;" onclick="shareReport()"></i> </h3>
+                <!-- <i class="fas fa-share-alt"></i>  -->
+                <button class="modal-close" id="close-report-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="report-minimal-header">Settlement Report</div>
+                <div class="report-minimal-row">Total Expense <span id="report-minimal-total"></span></div>
+                <div class="report-minimal-row">Per Person <span id="report-minimal-perperson"></span></div>
+                <div class="report-minimal-settlements" id="report-minimal-settlements"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="close-report-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="confirm-delete-modal">
+        <div class="confirm-dialog">
+            <p>Are you sure you want to delete this group? This action cannot be undone.</p>
+            <div class="confirm-actions">
+                <button class="btn btn-text" id="cancel-delete-btn">Cancel</button>
+                <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense Delete Confirmation Modal -->
+    <div class="modal-overlay" id="confirm-expense-delete-modal">
+        <div class="confirm-dialog">
+            <p>Are you sure you want to delete this expense? This action cannot be undone.</p>
+            <div class="confirm-actions">
+                <button class="btn btn-text" id="cancel-expense-delete-btn">Cancel</button>
+                <button class="btn btn-danger" id="confirm-expense-delete-btn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-container" id="toast-container">
+        <!-- Toast notifications will be dynamically added here -->
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal" style="max-width:340px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Account & Backup</h3>
+                <button class="modal-close" id="close-settings-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+                <button class="btn" id="export-data-btn">Export Data</button>
+                <button class="btn" id="import-data-btn">Import Data</button>
+                <input type="file" id="import-data-file" accept="application/json" style="display:none;" />
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIN SCREEN (full page) -->
+    <div id="login-screen" style="display:none;position:fixed;z-index:9999;top:0;left:0;width:100vw;height:100vh;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:2.2em;margin-bottom:20px;color:#2d3748;"><i class="fas fa-wallet"></i> ExpenseSplit</div>
+        <button class="btn" id="login-btn-main" style="font-size:1.1em;padding:14px 36px;background:#4285f4;color:#fff;border:none;border-radius:6px;box-shadow:0 2px 8px #0001;display:flex;align-items:center;gap:10px;cursor:pointer;opacity:1;">
+            <i class="fab fa-google"></i> Login with Google
+        </button>
+    </div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+    // Data Model
+class ExpenseSplitApp {
+    constructor() {
+        this.groups = [];
+        this.currentGroupId = null;
+        this.expenseToDeleteId = null;
+        this.user = null;
+        this.init();
+    }
+
+    init() {
+        // Load data from localStorage if available
+        this.loadData();
+        
+        // Set up event listeners
+        this.setupEventListeners();
+        
+        // Initialize date picker with today's date
+        document.getElementById('expense-date-input').valueAsDate = new Date();
+        
+        // Initialize UI
+        this.updateGroupsList();
+        this.updateGroupsCount();
+        
+        // Set default view
+        if (this.groups.length === 0) {
+            document.getElementById('welcome-screen').style.display = 'flex';
+            document.getElementById('group-details').style.display = 'none';
+        } else {
+            // Select first group by default
+            this.selectGroup(this.groups[0].id);
+        }
+    }
+
+    setupEventListeners() {
+        // Theme toggle
+        document.getElementById('theme-toggle').addEventListener('click', () => this.toggleTheme());
+        
+        // Add group buttons
+        document.getElementById('add-group-btn').addEventListener('click', () => this.openAddGroupModal());
+        document.getElementById('welcome-add-group-btn').addEventListener('click', () => this.openAddGroupModal());
+        
+        // Group modal
+        document.getElementById('close-add-group-modal').addEventListener('click', () => this.closeAddGroupModal());
+        document.getElementById('cancel-add-group').addEventListener('click', () => this.closeAddGroupModal());
+        document.getElementById('save-group-btn').addEventListener('click', () => this.saveGroup());
+        document.getElementById('add-member-btn').addEventListener('click', () => this.addMember());
+        
+        // Member input enter key
+        document.getElementById('member-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.addMember();
+            }
+        });
+        
+        // Expense buttons
+        document.getElementById('add-expense-btn').addEventListener('click', () => this.openAddExpenseModal());
+        document.getElementById('close-add-expense-modal').addEventListener('click', () => this.closeAddExpenseModal());
+        document.getElementById('cancel-add-expense').addEventListener('click', () => this.closeAddExpenseModal());
+        document.getElementById('save-expense-btn').addEventListener('click', () => this.saveExpense());
+        
+        // Split method change
+        const splitOptions = document.querySelectorAll('input[name="split-method"]');
+        splitOptions.forEach(option => {
+            option.addEventListener('change', (e) => {
+                if (e.target.value === 'custom') {
+                    document.getElementById('custom-split-container').style.display = 'grid';
+                } else {
+                    document.getElementById('custom-split-container').style.display = 'none';
+                }
+            });
+        });
+        
+        // Group actions
+        document.getElementById('edit-group-btn').addEventListener('click', () => this.editCurrentGroup());
+        document.getElementById('delete-group-btn').addEventListener('click', () => this.confirmDeleteGroup());
+        document.getElementById('generate-report-btn').addEventListener('click', () => this.generateReport());
+        
+        // Delete confirmation
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => this.closeDeleteConfirmation());
+        document.getElementById('confirm-delete-btn').addEventListener('click', () => this.deleteCurrentGroup());
+        
+        // Report modal
+        document.getElementById('close-report-modal').addEventListener('click', () => this.closeReportModal());
+        document.getElementById('close-report-btn').addEventListener('click', () => this.closeReportModal());
+
+        // Expense delete confirmation
+        document.getElementById('cancel-expense-delete-btn').addEventListener('click', () => this.closeExpenseDeleteConfirmation());
+        document.getElementById('confirm-expense-delete-btn').addEventListener('click', () => this.confirmDeleteExpense());
+
+        // Expenses share button
+        document.getElementById('share-expenses-btn').addEventListener('click', () => this.shareExpensesOnWhatsApp());
+
+        // Open settings modal on logo/title click
+        document.querySelector('.logo').addEventListener('click', () => {
+            document.getElementById('settings-modal').classList.add('active');
+        });
+        document.getElementById('close-settings-modal').addEventListener('click', () => {
+            document.getElementById('settings-modal').classList.remove('active');
+        });
+        document.getElementById('export-data-btn').addEventListener('click', () => this.exportData());
+        document.getElementById('import-data-btn').addEventListener('click', () => document.getElementById('import-data-file').click());
+        document.getElementById('import-data-file').addEventListener('change', (e) => this.importData(e));
+    }
+
+    // Theme functions
+    toggleTheme() {
+        const body = document.body;
+        const themeIcon = document.querySelector('.theme-toggle i');
+        
+        if (body.classList.contains('dark-theme')) {
+            body.classList.remove('dark-theme');
+            themeIcon.classList.remove('fa-sun');
+            themeIcon.classList.add('fa-moon');
+            localStorage.setItem('theme', 'light');
+        } else {
+            body.classList.add('dark-theme');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+            localStorage.setItem('theme', 'dark');
+        }
+    }
+
+    loadThemePreference() {
+        const savedTheme = localStorage.getItem('theme');
+        const themeIcon = document.querySelector('.theme-toggle i');
+        
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-theme');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        }
+    }
+
+    // Data management
+    loadData() {
+        // Load group IDs
+        const groupIdsStr = localStorage.getItem('expenseSplitGroupIds');
+        let groupIds = [];
+        if (groupIdsStr) {
+            groupIds = JSON.parse(groupIdsStr);
+        }
+        this.groups = [];
+        for (const groupId of groupIds) {
+            const groupStr = localStorage.getItem('expenseSplitGroup_' + groupId);
+            if (groupStr) {
+                this.groups.push(JSON.parse(groupStr));
+            }
+        }
+        // Set currentGroupId if available
+        const savedCurrent = localStorage.getItem('expenseSplitCurrentGroupId');
+        this.currentGroupId = savedCurrent || (this.groups[0] && this.groups[0].id) || null;
+        this.loadThemePreference();
+    }
+
+    saveData() {
+        // Save all groups individually
+        const groupIds = this.groups.map(g => g.id);
+        localStorage.setItem('expenseSplitGroupIds', JSON.stringify(groupIds));
+        for (const group of this.groups) {
+            localStorage.setItem('expenseSplitGroup_' + group.id, JSON.stringify(group));
+        }
+        // Remove deleted groups from storage
+        const allKeys = Object.keys(localStorage);
+        for (const key of allKeys) {
+            if (key.startsWith('expenseSplitGroup_')) {
+                const id = key.replace('expenseSplitGroup_', '');
+                if (!groupIds.includes(id)) {
+                    localStorage.removeItem(key);
+                }
+            }
+        }
+        // Save current group selection
+        if (this.currentGroupId) {
+            localStorage.setItem('expenseSplitCurrentGroupId', this.currentGroupId);
+        }
+    }
+
+    // Group functions
+    createId() {
+        // Ensure unique ID
+        let id;
+        do {
+            id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        } while (this.groups.some(g => g.id === id) || localStorage.getItem('expenseSplitGroup_' + id));
+        return id;
+    }
+
+    openAddGroupModal(groupId = null) {
+        const modal = document.getElementById('add-group-modal');
+        const modalTitle = document.getElementById('group-modal-title');
+        const form = document.getElementById('add-group-form');
+        const saveButton = document.getElementById('save-group-btn');
+        // Reset form and modal state
+        form.reset();
+        document.getElementById('members-list').innerHTML = '';
+        delete form.dataset.groupId;
+        if (groupId) {
+            // Edit mode
+            const group = this.findGroupById(groupId);
+            if (!group) return;
+            modalTitle.textContent = 'Edit Group';
+            saveButton.textContent = 'Save Changes';
+            document.getElementById('group-name-input').value = group.name;
+            group.members.forEach(member => {
+                this.addMemberToList(member);
+            });
+            form.dataset.groupId = groupId;
+        } else {
+            // Create mode
+            modalTitle.textContent = 'Create New Group';
+            saveButton.textContent = 'Create Group';
+        }
+        modal.classList.add('active');
+    }
+
+    closeAddGroupModal() {
+        document.getElementById('add-group-modal').classList.remove('active');
+    }
+
+    addMember() {
+        const memberInput = document.getElementById('member-input');
+        const memberName = memberInput.value.trim();
+        
+        if (memberName) {
+            this.addMemberToList(memberName);
+            memberInput.value = '';
+            memberInput.focus();
+        }
+    }
+
+    addMemberToList(memberName) {
+        const membersList = document.getElementById('members-list');
+        // Prevent duplicate member names
+        const existing = Array.from(membersList.querySelectorAll('.form-member span')).map(e => e.textContent.trim().toLowerCase());
+        if (existing.includes(memberName.trim().toLowerCase())) {
+            this.showToast('Member already added', 'error');
+            return;
+        }
+        const memberElement = document.createElement('div');
+        memberElement.className = 'form-member';
+        memberElement.innerHTML = `
+            <span>${memberName}</span>
+            <i class="fas fa-times"></i>
+        `;
+        memberElement.querySelector('i').addEventListener('click', () => {
+            memberElement.remove();
+        });
+        membersList.appendChild(memberElement);
+    }
+    
+    saveGroup() {
+        const form = document.getElementById('add-group-form');
+        const groupNameInput = document.getElementById('group-name-input');
+        const membersList = document.getElementById('members-list');
+        const memberElements = membersList.querySelectorAll('.form-member');
+        // Basic validation
+        if (!groupNameInput.value.trim()) {
+            this.showToast('Please enter a group name', 'error');
+            return;
+        }
+        if (memberElements.length < 2) {
+            this.showToast('Please add at least 2 members', 'error');
+            return;
+        }
+        // Prevent duplicate member names
+        const memberNames = Array.from(memberElements).map(el => el.querySelector('span').textContent.trim().toLowerCase());
+        const uniqueNames = new Set(memberNames);
+        if (uniqueNames.size !== memberNames.length) {
+            this.showToast('Duplicate member names are not allowed', 'error');
+            return;
+        }
+        if (form.dataset.groupId) {
+            // Edit existing group
+            const groupId = form.dataset.groupId;
+            const groupIndex = this.groups.findIndex(g => g.id === groupId);
+            if (groupIndex !== -1) {
+                this.groups[groupIndex].name = groupNameInput.value.trim();
+                this.groups[groupIndex].members = [];
+                memberElements.forEach(element => {
+                    this.groups[groupIndex].members.push(element.querySelector('span').textContent);
+                });
+                if (this.groups[groupIndex].members.length < 2) {
+                    this.showToast('Please add at least 2 members', 'error');
+                    return;
+                }
+                this.groups[groupIndex].lastUpdated = new Date().toISOString();
+                localStorage.setItem('expenseSplitGroup_' + groupId, JSON.stringify(this.groups[groupIndex]));
+                let groupIds = [];
+                const groupIdsStr = localStorage.getItem('expenseSplitGroupIds');
+                if (groupIdsStr) groupIds = JSON.parse(groupIdsStr);
+                if (!groupIds.includes(groupId)) {
+                    groupIds.push(groupId);
+                    localStorage.setItem('expenseSplitGroupIds', JSON.stringify(groupIds));
+                }
+                this.showToast('Group updated successfully');
+                this.updateGroupsList();
+                this.updateGroupsCount();
+                if (this.currentGroupId) {
+                    this.selectGroup(this.currentGroupId);
+                }
+                this.saveData();
+                this.closeAddGroupModal();
+            }
+        } else {
+            // Create new group
+            let newId = this.createId();
+            const newGroup = {
+                id: newId,
+                name: groupNameInput.value.trim(),
+                members: [],
+                expenses: [],
+                created: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+            };
+            memberElements.forEach(element => {
+                newGroup.members.push(element.querySelector('span').textContent);
+            });
+            this.groups.push(newGroup);
+            this.currentGroupId = newGroup.id;
+            localStorage.setItem('expenseSplitGroup_' + newId, JSON.stringify(newGroup));
+            let groupIds = [];
+            const groupIdsStr = localStorage.getItem('expenseSplitGroupIds');
+            if (groupIdsStr) groupIds = JSON.parse(groupIdsStr);
+            if (!groupIds.includes(newId)) {
+                groupIds.push(newId);
+                localStorage.setItem('expenseSplitGroupIds', JSON.stringify(groupIds));
+            }
+            this.showToast('Group created successfully');
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('group-details').style.display = 'flex';
+            this.updateGroupsList();
+            this.updateGroupsCount();
+            if (this.currentGroupId) {
+                this.selectGroup(this.currentGroupId);
+            }
+            this.saveData();
+            this.closeAddGroupModal();
+        }
+    }
+
+    updateGroupsList() {
+        const groupsList = document.getElementById('groups-list');
+        groupsList.innerHTML = '';
+        
+        if (this.groups.length === 0) {
+            return;
+        }
+        
+        this.groups.forEach(group => {
+            const groupElement = document.createElement('div');
+            groupElement.className = 'group-item';
+            groupElement.dataset.id = group.id;
+            
+            if (group.id === this.currentGroupId) {
+                groupElement.classList.add('active');
+            }
+            
+            groupElement.innerHTML = `
+                <div class="group-item-header">
+                    <div class="group-name">${group.name}</div>
+                    <div class="group-members">
+                        <i class="fas fa-users"></i>
+                        <span>${group.members.length}</span>
+                    </div>
+                </div>
+                <div class="group-expense-count">
+                    ${group.expenses.length} expense${group.expenses.length !== 1 ? 's' : ''}
+                </div>
+            `;
+            
+            // Add click event listener to select this group
+            groupElement.addEventListener('click', () => {
+                this.selectGroup(group.id);
+            });
+            
+            groupsList.appendChild(groupElement);
+        });
+    }
+
+    updateGroupsCount() {
+        document.getElementById('groups-count').textContent = this.groups.length;
+    }
+
+    selectGroup(groupId) {
+        // Store the current group ID
+        this.currentGroupId = groupId;
+        
+        // Update active state in list
+        const groupItems = document.querySelectorAll('.group-item');
+        groupItems.forEach(item => {
+            if (item.dataset.id === groupId) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+        
+        // Update group details
+        this.updateGroupDetails();
+        
+        // Show group details panel
+        document.getElementById('welcome-screen').style.display = 'none';
+        document.getElementById('group-details').style.display = 'flex';
+        
+        // Save current selection
+        this.saveData();
+    }
+
+    findGroupById(groupId) {
+        return this.groups.find(group => group.id === groupId);
+    }
+
+    updateGroupDetails() {
+        const group = this.findGroupById(this.currentGroupId);
+        
+        if (!group) return;
+        
+        // Update header
+        document.getElementById('group-name').textContent = group.name;
+        
+        // Update info
+        document.getElementById('members-count').textContent = group.members.length;
+        
+        // Calculate total expenses
+        const totalAmount = group.expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
+        document.getElementById('total-expenses').textContent = this.formatCurrency(totalAmount);
+        
+        // Update last updated
+        document.getElementById('last-updated').textContent = this.formatDate(group.lastUpdated);
+        
+        // Update expenses list
+        this.updateExpensesList(group);
+        
+        // Update balances
+        this.updateBalances(group);
+    }
+
+    updateExpensesList(group) {
+        const expenseList = document.getElementById('expense-list');
+        // Remove all children
+        expenseList.innerHTML = '';
+        if (group.expenses.length === 0) {
+            // Show empty state (create new node each time)
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'empty-state';
+            emptyDiv.innerHTML = `
+                <div class="empty-icon">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div class="empty-text">No expenses yet. Add your first expense!</div>
+            `;
+            expenseList.appendChild(emptyDiv);
+            // Enable edit group button
+            const btn = document.getElementById("edit-group-btn");
+            btn.dissable = false;
+            btn.classList.remove("disabled-btn");
+            btn.disabled = false;
+            return;
+        } else {
+            //  enable edit group button
+            document.getElementById("edit-group-btn").disabled = true;
+            document.getElementById("edit-group-btn").classList.add("disabled-btn");
+        }
+        
+        // Sort expenses by date (newest first)
+        const sortedExpenses = [...group.expenses].sort((a, b) => {
+            return new Date(b.date) - new Date(a.date);
+        });
+        
+        sortedExpenses.forEach(expense => {
+            const expenseElement = document.createElement('div');
+            expenseElement.className = 'expense-item';
+            expenseElement.dataset.id = expense.id;
+            
+            expenseElement.innerHTML = `
+                <div class="expense-details">
+                    <div class="expense-title">${expense.description}</div>
+                    <div class="expense-meta">
+                        <span><i class="fas fa-user"></i> ${expense.paidBy}</span>
+                        <span><i class="fas fa-calendar"></i> ${this.formatDate(expense.date)}</span>
+                    </div>
+                </div>
+                <div class="expense-amount">
+                    ${this.formatCurrency(expense.amount)}
+                    <button class="delete-expense-btn" title="Delete expense">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            
+            // Change: Use confirmation dialog
+            expenseElement.querySelector('.delete-expense-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showExpenseDeleteConfirmation(expense.id);
+            });
+            
+            // Add click event for editing expense
+            expenseElement.addEventListener('click', () => {
+                // TODO: Implement expense editing
+                this.showToast('Expense editing will be implemented in a future update', 'info');
+            });
+            
+            expenseList.appendChild(expenseElement);
+        });
+    }
+
+    // Show expense delete confirmation modal
+    showExpenseDeleteConfirmation(expenseId) {
+        this.expenseToDeleteId = expenseId;
+        document.getElementById('confirm-expense-delete-modal').classList.add('active');
+    }
+    closeExpenseDeleteConfirmation() {
+        this.expenseToDeleteId = null;
+        document.getElementById('confirm-expense-delete-modal').classList.remove('active');
+    }
+    confirmDeleteExpense() {
+        if (this.expenseToDeleteId) {
+            this.deleteExpense(this.expenseToDeleteId, true);
+            this.expenseToDeleteId = null;
+        }
+        this.closeExpenseDeleteConfirmation();
+    }
+
+    updateBalances(group) {
+        const balanceList = document.getElementById('balance-list');
+        balanceList.innerHTML = '';
+        
+        if (group.expenses.length === 0) {
+            return;
+        }
+        
+        // Calculate balances
+        const balances = this.calculateBalances(group);
+        
+        // Create balance items
+        Object.keys(balances).forEach(member => {
+            const balance = balances[member];
+            const balanceElement = document.createElement('div');
+            balanceElement.className = 'balance-item';
+            
+            balanceElement.innerHTML = `
+                <div class="balance-person">${member}</div>
+                <div class="balance-amount ${balance > 0 ? 'positive' : balance < 0 ? 'negative' : ''}">
+                    ${this.formatCurrency(balance)}
+                </div>
+            `;
+            
+            balanceList.appendChild(balanceElement);
+        });
+    }
+    
+    calculateBalances(group) {
+        const balances = {};
+        
+        // Initialize balances for all members
+        group.members.forEach(member => {
+            balances[member] = 0;
+        });
+        
+        // Calculate paid amounts and owed amounts
+        group.expenses.forEach(expense => {
+            // Add amount to payer's balance
+            balances[expense.paidBy] += parseFloat(expense.amount);
+            
+            // Calculate and subtract shares from each participant
+            const participants = expense.participants || group.members;
+            const participantCount = participants.length;
+            
+            if (!expense.splitMethod || expense.splitMethod === 'equal') {
+                // Equal split
+                const shareAmount = parseFloat(expense.amount) / participantCount;
+                
+                participants.forEach(participant => {
+                    balances[participant] -= shareAmount;
+                });
+            } else {
+                // Custom split
+                expense.shares.forEach(share => {
+                    balances[share.member] -= parseFloat(share.amount);
+                });
+            }
+        });
+        
+        return balances;
+    }
+
+    editCurrentGroup() {
+        if (this.currentGroupId) {
+            this.openAddGroupModal(this.currentGroupId);
+        }
+    }
+
+    confirmDeleteGroup() {
+        document.getElementById('confirm-delete-modal').classList.add('active');
+    }
+
+    closeDeleteConfirmation() {
+        document.getElementById('confirm-delete-modal').classList.remove('active');
+    }
+
+    deleteCurrentGroup() {
+        if (this.currentGroupId) {
+            const groupIndex = this.groups.findIndex(group => group.id === this.currentGroupId);
+            if (groupIndex !== -1) {
+                const groupId = this.groups[groupIndex].id;
+                this.groups.splice(groupIndex, 1);
+                localStorage.removeItem('expenseSplitGroup_' + groupId);
+                let groupIds = [];
+                const groupIdsStr = localStorage.getItem('expenseSplitGroupIds');
+                if (groupIdsStr) groupIds = JSON.parse(groupIdsStr);
+                groupIds = groupIds.filter(id => id !== groupId);
+                localStorage.setItem('expenseSplitGroupIds', JSON.stringify(groupIds));
+                if (this.groups.length === 0) {
+                    this.currentGroupId = null;
+                    localStorage.removeItem('expenseSplitCurrentGroupId');
+                    document.getElementById('welcome-screen').style.display = 'flex';
+                    document.getElementById('group-details').style.display = 'none';
+                } else {
+                    this.currentGroupId = this.groups[0].id;
+                    this.selectGroup(this.currentGroupId);
+                }
+                this.saveData();
+                this.showToast('Group deleted successfully');
+            }
+        }
+        this.closeDeleteConfirmation();
+    }
+
+    // Expense functions
+    openAddExpenseModal() {
+        const modal = document.getElementById('add-expense-modal');
+        const group = this.findGroupById(this.currentGroupId);
+        if (!group) return;
+        document.getElementById('add-expense-form').reset();
+        document.getElementById('expense-date-input').valueAsDate = new Date();
+        document.getElementById('custom-split-container').style.display = 'none';
+        document.querySelector('input[value="equal"]').checked = true;
+        const payerSelect = document.getElementById('expense-payer-input');
+        payerSelect.innerHTML = '';
+        group.members.forEach(member => {
+            const option = document.createElement('option');
+            option.value = member;
+            option.textContent = member;
+            payerSelect.appendChild(option);
+        });
+        const customSplitContainer = document.getElementById('custom-split-container');
+        customSplitContainer.innerHTML = '';
+        group.members.forEach(member => {
+            const splitItem = document.createElement('div');
+            splitItem.className = 'custom-split-item';
+            splitItem.innerHTML = `
+                <div class="split-person">${member}</div>
+                <input type="number" step="0.01" min="0" class="form-control" data-member="${member}" placeholder="0.00">
+            `;
+            customSplitContainer.appendChild(splitItem);
+        });
+        // --- Show remaining amount for custom split ---
+        let remainingDiv = document.getElementById('custom-split-remaining');
+        if (!remainingDiv) {
+            remainingDiv = document.createElement('div');
+            remainingDiv.id = 'custom-split-remaining';
+            remainingDiv.style.marginTop = '10px';
+            remainingDiv.style.fontWeight = 'bold';
+            remainingDiv.style.color = '#007bff';
+            customSplitContainer.parentNode.appendChild(remainingDiv);
+        }
+        // Always reset remaining amount to full or 0
+        const amountInput = document.getElementById('expense-amount-input');
+        const resetRemaining = () => {
+            const total = parseFloat(amountInput.value) || 0;
+            remainingDiv.textContent = `Remaining amount: ₹${total.toFixed(2)}`;
+        };
+        resetRemaining();
+        function updateCustomSplitRemaining() {
+            const total = parseFloat(amountInput.value) || 0;
+            const inputs = Array.from(customSplitContainer.querySelectorAll('input'));
+            const sum = inputs.reduce((acc, input) => acc + (parseFloat(input.value) || 0), 0);
+            const remaining = total - sum;
+            remainingDiv.textContent = `Remaining amount: ₹${remaining.toFixed(2)}`;
+        }
+        customSplitContainer.addEventListener('input', function(e) {
+            if (e.target.matches('input')) {
+                updateCustomSplitRemaining();
+            }
+        });
+        amountInput.addEventListener('input', function() {
+            updateCustomSplitRemaining();
+        });
+        document.querySelector('input[value="custom"]').addEventListener('change', function() {
+            setTimeout(updateCustomSplitRemaining, 10);
+        });
+        // --- End show remaining amount ---
+        modal.classList.add('active');
+    }
+
+    closeAddExpenseModal() {
+        document.getElementById('add-expense-modal').classList.remove('active');
+    }
+
+    saveExpense() {
+        const form = document.getElementById('add-expense-form');
+        const descInput = document.getElementById('expense-name-input');
+        const amountInput = document.getElementById('expense-amount-input');
+        const payerInput = document.getElementById('expense-payer-input');
+        const dateInput = document.getElementById('expense-date-input');
+        const splitMethod = document.querySelector('input[name="split-method"]:checked').value;
+        if (!descInput.value.trim()) {
+            this.showToast('Please enter an expense description', 'error');
+            return;
+        }
+        if (!amountInput.value || parseFloat(amountInput.value) <= 0) {
+            this.showToast('Please enter a valid amount', 'error');
+            return;
+        }
+        if (!dateInput.value) {
+            this.showToast('Please select a date', 'error');
+            return;
+        }
+        const group = this.findGroupById(this.currentGroupId);
+        if (!group) return;
+        // Validate payer
+        if (!group.members.includes(payerInput.value)) {
+            this.showToast('Payer must be a group member', 'error');
+            return;
+        }
+        const participants = [...group.members];
+        const expense = {
+            id: this.createId(),
+            description: descInput.value.trim(),
+            amount: parseFloat(amountInput.value),
+            paidBy: payerInput.value,
+            date: dateInput.value,
+            splitMethod: splitMethod,
+            participants: participants,
+            shares: []
+        };
+        if (splitMethod === 'custom') {
+            const customInputs = document.querySelectorAll('#custom-split-container input');
+            let totalCustom = 0;
+            let allZero = true;
+            let missing = false;
+            customInputs.forEach(input => {
+                const member = input.dataset.member;
+                const amount = parseFloat(input.value) || 0;
+                if (amount > 0) allZero = false;
+                totalCustom += amount;
+                expense.shares.push({
+                    member: member,
+                    amount: amount
+                });
+                if (!group.members.includes(member)) missing = true;
+            });
+            if (missing) {
+                this.showToast('Custom split: all members must be included', 'error');
+                return;
+            }
+            if (allZero) {
+                this.showToast('Custom split: all values cannot be zero', 'error');
+                return;
+            }
+            if (Math.abs(totalCustom - expense.amount) > 0.01) {
+                this.showToast('Custom amounts must sum to total expense amount', 'error');
+                return;
+            }
+        }
+        group.expenses.push(expense);
+        group.lastUpdated = new Date().toISOString();
+        this.updateGroupDetails();
+        this.updateGroupsList();
+        this.saveData();
+        this.closeAddExpenseModal();
+        this.showToast('Expense added successfully');
+    }
+
+    // Settlement functions
+    generateReport() {
+        const group = this.findGroupById(this.currentGroupId);
+        if (!group || group.expenses.length === 0) {
+            this.showToast('No expenses to generate report', 'info');
+            return;
+        }
+        // Calculate balances
+        const balances = this.calculateBalances(group);
+        // Total expense
+        const totalExpense = group.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+        // Share per person
+        const membersCount = group.members.length;
+        const sharePerPerson = totalExpense / membersCount;
+        // Generate settlement plan
+        const settlements = this.calculateSettlements(balances);
+        // Set new minimal values
+        document.getElementById('report-minimal-total').textContent = this.formatCurrency(totalExpense);
+        document.getElementById('report-minimal-perperson').textContent = this.formatCurrency(sharePerPerson);
+        // Display settlements
+        const settlementsContainer = document.getElementById('report-minimal-settlements');
+        settlementsContainer.innerHTML = '';
+        if (settlements.length === 0) {
+            const noSettlement = document.createElement('div');
+            noSettlement.className = 'report-minimal-settlement-row settled';
+            noSettlement.innerHTML = `<span style='color:#2e7d32;font-weight:500;'><span style='font-size:1.1em;'>✔</span> Everyone is settled up!</span>`;
+            settlementsContainer.appendChild(noSettlement);
+        } else {
+            settlements.forEach(settlement => {
+                const row = document.createElement('div');
+                row.className = 'report-minimal-settlement-row';
+                row.innerHTML = `<span>${settlement.from} <span class='arrow'>&rarr;</span> ${settlement.to}</span><span class='amount'>${this.formatCurrency(settlement.amount)}</span>`;
+                settlementsContainer.appendChild(row);
+            });
+        }
+        // Show report modal
+        document.getElementById('report-modal').classList.add('active');
+    }
+
+    calculateSettlements(balances) {
+        const settlements = [];
+        
+        // Create lists of debtors and creditors
+        const debtors = [];
+        const creditors = [];
+        
+        for (const [person, balance] of Object.entries(balances)) {
+            if (balance < -0.01) {
+                debtors.push({ person, amount: Math.abs(balance) });
+            } else if (balance > 0.01) {
+                creditors.push({ person, amount: balance });
+            }
+        }
+        
+        // Sort by amount (largest first)
+        debtors.sort((a, b) => b.amount - a.amount);
+        creditors.sort((a, b) => b.amount - a.amount);
+        
+        // Create settlements
+        while (debtors.length > 0 && creditors.length > 0) {
+            const debtor = debtors[0];
+            const creditor = creditors[0];
+            
+            const amount = Math.min(debtor.amount, creditor.amount);
+            
+            // Round to 2 decimal places
+            const roundedAmount = Math.round(amount * 100) / 100;
+            
+            if (roundedAmount > 0.01) {
+                settlements.push({
+                    from: debtor.person,
+                    to: creditor.person,
+                    amount: roundedAmount
+                });
+            }
+            
+            // Update amounts
+            debtor.amount -= amount;
+            creditor.amount -= amount;
+            
+            // Remove settled people
+            if (debtor.amount < 0.01) debtors.shift();
+            if (creditor.amount < 0.01) creditors.shift();
+        }
+        
+        return settlements;
+    }
+
+    closeReportModal() {
+        document.getElementById('report-modal').classList.remove('active');
+    }
+
+    // Helper functions
+    formatCurrency(amount) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'INR',
+            minimumFractionDigits: 2
+        }).format(amount);
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+    }
+
+    showToast(message, type = 'success') {
+        const toastContainer = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Show toast
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        // Hide toast after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            
+            // Remove toast after animation
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 3000);
+    }
+
+    // Update deleteExpense to optionally skip confirmation
+    deleteExpense(expenseId, skipConfirm = false) {
+        if (!skipConfirm) {
+            this.showExpenseDeleteConfirmation(expenseId);
+            return;
+        }
+        const group = this.findGroupById(this.currentGroupId);
+        if (!group) return;
+        const expenseIndex = group.expenses.findIndex(expense => expense.id === expenseId);
+        if (expenseIndex !== -1) {
+            group.expenses.splice(expenseIndex, 1);
+            group.lastUpdated = new Date().toISOString();
+            this.updateGroupDetails();
+            this.updateGroupsList();
+            this.saveData();
+            this.showToast('Expense deleted successfully');
+        }
+    }
+
+    shareExpensesOnWhatsApp() {
+        const group = this.findGroupById(this.currentGroupId);
+        if (!group || !group.expenses.length) {
+            this.showToast('No expenses to share', 'info');
+            return;
+        }
+        let text = `*Expenses for ${group.name}*\n\n`;
+        group.expenses.forEach(exp => {
+            text += `• ${exp.description} - ₹${parseFloat(exp.amount).toFixed(2)}\n  Paid by: ${exp.paidBy} on ${this.formatDate(exp.date)}\n`;
+        });
+        text += `\nShared via ExpenseSplit`;
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, '_blank');
+    }
+
+    exportData() {
+        const groupIdsStr = localStorage.getItem('expenseSplitGroupIds');
+        let groupIds = [];
+        if (groupIdsStr) groupIds = JSON.parse(groupIdsStr);
+        const groups = groupIds.map(id => JSON.parse(localStorage.getItem('expenseSplitGroup_' + id) || '{}'));
+        const data = {
+            groups,
+            groupIds,
+            currentGroupId: localStorage.getItem('expenseSplitCurrentGroupId') || null
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ExpenseSplitBackup.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.showToast('Data exported successfully');
+    }
+
+    importData(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                if (!data.groups || !Array.isArray(data.groups) || !data.groupIds) {
+                    this.showToast('Invalid backup file', 'error');
+                    return;
+                }
+                if (!confirm('Importing will overwrite all your current data. Continue?')) return;
+                // Clear all relevant localStorage
+                const allKeys = Object.keys(localStorage);
+                for (const key of allKeys) {
+                    if (key.startsWith('expenseSplitGroup_') || key === 'expenseSplitGroupIds' || key === 'expenseSplitCurrentGroupId') {
+                        localStorage.removeItem(key);
+                    }
+                }
+                // Restore
+                localStorage.setItem('expenseSplitGroupIds', JSON.stringify(data.groupIds));
+                if (data.currentGroupId) localStorage.setItem('expenseSplitCurrentGroupId', data.currentGroupId);
+                data.groups.forEach(group => {
+                    if (group.id) {
+                        localStorage.setItem('expenseSplitGroup_' + group.id, JSON.stringify(group));
+                    }
+                });
+                this.showToast('Data imported! Reloading...');
+                setTimeout(() => window.location.reload(), 800);
+            } catch (err) {
+                this.showToast('Import failed: Invalid file', 'error');
+            }
+        };
+        reader.readAsText(file);
+        // Reset file input
+        e.target.value = '';
+    }
+
+    setUser(user) {
+        this.user = user;
+        if (user) {
+            this.loadDataFromFirestore();
+        } else {
+            this.groups = [];
+            this.currentGroupId = null;
+            this.updateGroupsList();
+            this.updateGroupsCount();
+            document.getElementById('welcome-screen').style.display = 'flex';
+            document.getElementById('group-details').style.display = 'none';
+        }
+    }
+
+    async loadDataFromFirestore() {
+        showLoading('Loading your groups...');
+        this.groups = [];
+        this.currentGroupId = null;
+        try {
+            const snapshot = await db.collection('users').doc(this.user.uid).collection('groups').get();
+            snapshot.forEach(doc => {
+                this.groups.push(doc.data());
+            });
+            this.updateGroupsList();
+            this.updateGroupsCount();
+            if (this.groups.length === 0) {
+                document.getElementById('welcome-screen').style.display = 'flex';
+                document.getElementById('group-details').style.display = 'none';
+            } else {
+                this.selectGroup(this.groups[0].id);
+            }
+        } catch (err) {
+            this.showToast('Failed to load data', 'error');
+        }
+        hideLoading();
+    }
+
+    async saveGroup() {
+        const form = document.getElementById('add-group-form');
+        const groupNameInput = document.getElementById('group-name-input');
+        const membersList = document.getElementById('members-list');
+        const memberElements = membersList.querySelectorAll('.form-member');
+        if (!groupNameInput.value.trim()) {
+            this.showToast('Please enter a group name', 'error');
+            return;
+        }
+        if (memberElements.length < 2) {
+            this.showToast('Please add at least 2 members', 'error');
+            return;
+        }
+        const memberNames = Array.from(memberElements).map(el => el.querySelector('span').textContent.trim().toLowerCase());
+        const uniqueNames = new Set(memberNames);
+        if (uniqueNames.size !== memberNames.length) {
+            this.showToast('Duplicate member names are not allowed', 'error');
+            return;
+        }
+        if (form.dataset.groupId) {
+            // Edit existing group
+            const groupId = form.dataset.groupId;
+            const groupIndex = this.groups.findIndex(g => g.id === groupId);
+            if (groupIndex !== -1) {
+                this.groups[groupIndex].name = groupNameInput.value.trim();
+                this.groups[groupIndex].members = [];
+                memberElements.forEach(element => {
+                    this.groups[groupIndex].members.push(element.querySelector('span').textContent);
+                });
+                if (this.groups[groupIndex].members.length < 2) {
+                    this.showToast('Please add at least 2 members', 'error');
+                    return;
+                }
+                this.groups[groupIndex].lastUpdated = new Date().toISOString();
+                await db.collection('users').doc(this.user.uid).collection('groups').doc(groupId).set(this.groups[groupIndex]);
+                this.showToast('Group updated successfully');
+                this.updateGroupsList();
+                this.updateGroupsCount();
+                if (this.currentGroupId) {
+                    this.selectGroup(this.currentGroupId);
+                }
+                this.closeAddGroupModal();
+            }
+        } else {
+            // Create new group
+            let newId = this.createId();
+            const newGroup = {
+                id: newId,
+                name: groupNameInput.value.trim(),
+                members: [],
+                expenses: [],
+                created: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+            };
+            memberElements.forEach(element => {
+                newGroup.members.push(element.querySelector('span').textContent);
+            });
+            this.groups.push(newGroup);
+            this.currentGroupId = newGroup.id;
+            await db.collection('users').doc(this.user.uid).collection('groups').doc(newId).set(newGroup);
+            this.showToast('Group created successfully');
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('group-details').style.display = 'flex';
+            this.updateGroupsList();
+            this.updateGroupsCount();
+            if (this.currentGroupId) {
+                this.selectGroup(this.currentGroupId);
+            }
+            this.closeAddGroupModal();
+        }
+    }
+
+    async deleteCurrentGroup() {
+        if (this.currentGroupId) {
+            const groupIndex = this.groups.findIndex(group => group.id === this.currentGroupId);
+            if (groupIndex !== -1) {
+                const groupId = this.groups[groupIndex].id;
+                this.groups.splice(groupIndex, 1);
+                await db.collection('users').doc(this.user.uid).collection('groups').doc(groupId).delete();
+                if (this.groups.length === 0) {
+                    this.currentGroupId = null;
+                    document.getElementById('welcome-screen').style.display = 'flex';
+                    document.getElementById('group-details').style.display = 'none';
+                } else {
+                    this.currentGroupId = this.groups[0].id;
+                    this.selectGroup(this.currentGroupId);
+                }
+                this.showToast('Group deleted successfully');
+            }
+        }
+        this.closeDeleteConfirmation();
+    }
+
+    async saveExpense() {
+        const form = document.getElementById('add-expense-form');
+        const descInput = document.getElementById('expense-name-input');
+        const amountInput = document.getElementById('expense-amount-input');
+        const payerInput = document.getElementById('expense-payer-input');
+        const dateInput = document.getElementById('expense-date-input');
+        const splitMethod = document.querySelector('input[name="split-method"]:checked').value;
+        if (!descInput.value.trim()) {
+            this.showToast('Please enter an expense description', 'error');
+            return;
+        }
+        if (!amountInput.value || parseFloat(amountInput.value) <= 0) {
+            this.showToast('Please enter a valid amount', 'error');
+            return;
+        }
+        if (!dateInput.value) {
+            this.showToast('Please select a date', 'error');
+            return;
+        }
+        const group = this.findGroupById(this.currentGroupId);
+        if (!group) return;
+        if (!group.members.includes(payerInput.value)) {
+            this.showToast('Payer must be a group member', 'error');
+            return;
+        }
+        const participants = [...group.members];
+        const expense = {
+            id: this.createId(),
+            description: descInput.value.trim(),
+            amount: parseFloat(amountInput.value),
+            paidBy: payerInput.value,
+            date: dateInput.value,
+            splitMethod: splitMethod,
+            participants: participants,
+            shares: []
+        };
+        if (splitMethod === 'custom') {
+            const customInputs = document.querySelectorAll('#custom-split-container input');
+            let totalCustom = 0;
+            let allZero = true;
+            let missing = false;
+            customInputs.forEach(input => {
+                const member = input.dataset.member;
+                const amount = parseFloat(input.value) || 0;
+                if (amount > 0) allZero = false;
+                totalCustom += amount;
+                expense.shares.push({
+                    member: member,
+                    amount: amount
+                });
+                if (!group.members.includes(member)) missing = true;
+            });
+            if (missing) {
+                this.showToast('Custom split: all members must be included', 'error');
+                return;
+            }
+            if (allZero) {
+                this.showToast('Custom split: all values cannot be zero', 'error');
+                return;
+            }
+            if (Math.abs(totalCustom - expense.amount) > 0.01) {
+                this.showToast('Custom amounts must sum to total expense amount', 'error');
+                return;
+            }
+        }
+        group.expenses.push(expense);
+        group.lastUpdated = new Date().toISOString();
+        await db.collection('users').doc(this.user.uid).collection('groups').doc(group.id).set(group);
+        this.updateGroupDetails();
+        this.updateGroupsList();
+        this.closeAddExpenseModal();
+        this.showToast('Expense added successfully');
+    }
+
+    async deleteExpense(expenseId, skipConfirm = false) {
+        if (!skipConfirm) {
+            this.showExpenseDeleteConfirmation(expenseId);
+            return;
+        }
+        const group = this.findGroupById(this.currentGroupId);
+        if (!group) return;
+        const expenseIndex = group.expenses.findIndex(expense => expense.id === expenseId);
+        if (expenseIndex !== -1) {
+            group.expenses.splice(expenseIndex, 1);
+            group.lastUpdated = new Date().toISOString();
+            await db.collection('users').doc(this.user.uid).collection('groups').doc(group.id).set(group);
+            this.updateGroupDetails();
+            this.updateGroupsList();
+            this.showToast('Expense deleted successfully');
+        }
+    }
+}
+
+// Initialize the app
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new ExpenseSplitApp();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  window.shareReport = function () {
+    const reportContainer = document.getElementById('report-container');
+    const groupName = document.getElementById('ShowGroupName')?.textContent.trim();
+    const totalExpenseText = document.querySelector('.report-summary > div:nth-child(1)')?.textContent.trim();
+    const sharePerPersonText = document.querySelector('.report-summary > div:nth-child(2)')?.textContent.trim();
+    const settlementItems = document.querySelectorAll('.settlement-item');
+
+    if (!reportContainer || !settlementItems.length || !totalExpenseText || !sharePerPersonText) {
+      alert("Report data not found!");
+      return;
+    }
+
+    const totalExpense = totalExpenseText.replace(/[^\d.]/g, '');
+    const sharePerPerson = sharePerPersonText.replace(/[^\d.]/g, '');
+
+    const payments = [];
+
+    settlementItems.forEach(item => {
+      const text = item.querySelector('.settlement-text')?.textContent.trim();
+      const amountText = item.querySelector('.settlement-amount')?.textContent.trim().replace(/[₹,]/g, '');
+      const amount = parseFloat(amountText);
+
+      if (text && !isNaN(amount)) {
+        payments.push({ text, amount });
+      }
+    });
+
+    // Generate the report text
+    let reportText = `📋 Settlements Summary for ${groupName}\n\n`;
+    reportText += `💰 Total Expenses: ₹${parseFloat(totalExpense).toFixed(2)}\n`;
+    reportText += `👥 Share Per Person: ₹${parseFloat(sharePerPerson).toFixed(2)}\n\n`;
+    reportText += `🔄 Settlement Plan:\n\n`;
+
+    payments.forEach(({ text, amount }) => {
+      reportText += `• ${text} - ₹${amount.toFixed(2)}\n`;
+    });
+
+    // Share or fallback to copy
+    if (navigator.share) {
+      navigator.share({
+        title: 'TripSplit - Settlement Summary',
+        text: reportText
+      })
+      .then(() => console.log('Report shared successfully'))
+      .catch((error) => console.error('Error sharing report:', error));
+    } else {
+      // Clipboard fallback
+      navigator.clipboard.writeText(reportText)
+        .then(() => alert('Report copied to clipboard!'))
+        .catch(err => {
+          console.error('Clipboard write failed:', err);
+          alert('Failed to copy the report');
+        });
+    }
+  };
+});
+
+// --- Firebase config and auth logic ---
+const firebaseConfig = {
+  apiKey: "AIzaSyDk5khTBcC4IUs9EsPvnKRdBJrqfLV1JhU",
+  authDomain: "split-expanses.firebaseapp.com",
+  databaseURL: "https://split-expanses-default-rtdb.firebaseio.com",
+  projectId: "split-expanses",
+  storageBucket: "split-expanses.appspot.com",
+  messagingSenderId: "795381374534",
+  appId: "1:795381374534:web:767d2254189b87557fb447",
+  measurementId: "G-NHWDR56FFP"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// UI helpers
+function showLoginScreen(show) {
+    const loginScreen = document.getElementById('login-screen');
+    const appContainer = document.querySelector('.container');
+    if (show) {
+        loginScreen.style.display = 'flex';
+        appContainer.style.display = 'none';
+        hideLoading(); // Hide loading overlay when login screen is shown
+    } else {
+        loginScreen.style.display = 'none';
+        appContainer.style.display = '';
+    }
+}
+function showAppUI(show) {
+  document.querySelector('.container').style.display = show ? '' : 'none';
+}
+function showAuthPanel(user) {
+  // Hide header login/logout buttons for now
+  document.getElementById('login-btn').style.display = 'none';
+  document.getElementById('logout-btn').style.display = 'none';
+  document.getElementById('user-email').textContent = user ? user.email : '';
+}
+function showLoading(msg) {
+  let loading = document.getElementById('firebase-loading');
+  // If login screen is visible, never show loading overlay
+  if (document.getElementById('login-screen')?.style.display === 'flex') {
+    if (loading) loading.style.display = 'none';
+    return;
+  }
+  if (!loading) {
+    loading = document.createElement('div');
+    loading.id = 'firebase-loading';
+    loading.style.position = 'fixed';
+    loading.style.top = '0';
+    loading.style.left = '0';
+    loading.style.width = '100vw';
+    loading.style.height = '100vh';
+    loading.style.background = 'rgba(255,255,255,0.85)';
+    loading.style.display = 'flex';
+    loading.style.alignItems = 'center';
+    loading.style.justifyContent = 'center';
+    loading.style.zIndex = '9999';
+    loading.style.fontSize = '1.2rem';
+    loading.innerHTML = `<div>${msg || 'Loading...'}</div>`;
+    document.body.appendChild(loading);
+  } else {
+    loading.innerHTML = `<div>${msg || 'Loading...'}</div>`;
+    loading.style.display = 'flex';
+  }
+}
+function hideLoading() {
+  const loading = document.getElementById('firebase-loading');
+  if (loading) loading.style.display = 'none';
+}
+
+// Auth logic
+// Remove header login/logout button listeners
+// Add main login button logic
+const loginBtnMain = document.getElementById('login-btn-main');
+if (loginBtnMain) {
+  loginBtnMain.onclick = () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider);
+  };
+}
+
+// Remove header login/logout button logic
+// loginBtn.onclick = ...
+// logoutBtn.onclick = ...
+
+showLoginScreen(true);
+showLoading('Checking authentication...');
+
+// Auth state observer
+auth.onAuthStateChanged(user => {
+  if (user) {
+    showLoginScreen(false);
+    showAppUI(true);
+    showAuthPanel(user);
+    hideLoading();
+    if (window.app) window.app.setUser(user);
+  } else {
+    showLoginScreen(true);
+    showAppUI(false);
+    showAuthPanel(null);
+    showLoading('Please log in to use ExpenseSplit');
+    if (window.app) window.app.setUser(null);
+  }
+});
+// --- End Firebase config and auth logic ---
+
+</script>
+
+</div> <!-- your HTML content -->
+
+</body>
+
+</html>
+        
