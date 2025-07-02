@@ -540,7 +540,11 @@ class ExpenseSplitApp {
         membersList.appendChild(memberElement);
     }
     
-    saveGroup() {
+    async saveGroup() {
+        if (!this.user || !this.user.uid) {
+            this.showToast('You must be logged in to create a group.', 'error');
+            return;
+        }
         const form = document.getElementById('add-group-form');
         const groupNameInput = document.getElementById('group-name-input');
         const membersList = document.getElementById('members-list');
@@ -1330,6 +1334,10 @@ class ExpenseSplitApp {
     }
 
     async saveGroup() {
+        if (!this.user || !this.user.uid) {
+            this.showToast('You must be logged in to create a group.', 'error');
+            return;
+        }
         const form = document.getElementById('add-group-form');
         const groupNameInput = document.getElementById('group-name-input');
         const membersList = document.getElementById('members-list');
