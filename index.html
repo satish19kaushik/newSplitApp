@@ -1525,8 +1525,39 @@ class ExpenseSplitApp {
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
-    const app = new ExpenseSplitApp();
+    window.app = new ExpenseSplitApp();
+
+    // Auth logic
+    const loginBtnMain = document.getElementById('login-btn-main');
+    if (loginBtnMain) {
+      loginBtnMain.onclick = () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider);
+      };
+    }
+
+    showLoginScreen(true);
+    showLoading('Checking authentication...');
+
+    // Auth state observer
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        showLoginScreen(false);
+        showAppUI(true);
+        showAuthPanel(user);
+        hideLoading();
+        window.app.setUser(user);
+      } else {
+        showLoginScreen(true);
+        showAppUI(false);
+        showAuthPanel(null);
+        showLoading('Please log in to use ExpenseSplit');
+        window.app.setUser(null);
+      }
+    });
 });
+
+// --- End Firebase config and auth logic ---
 
 document.addEventListener('DOMContentLoaded', () => {
   window.shareReport = function () {
@@ -1655,43 +1686,6 @@ function hideLoading() {
   const loading = document.getElementById('firebase-loading');
   if (loading) loading.style.display = 'none';
 }
-
-// Auth logic
-// Remove header login/logout button listeners
-// Add main login button logic
-const loginBtnMain = document.getElementById('login-btn-main');
-if (loginBtnMain) {
-  loginBtnMain.onclick = () => {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider);
-  };
-}
-
-// Remove header login/logout button logic
-// loginBtn.onclick = ...
-// logoutBtn.onclick = ...
-
-showLoginScreen(true);
-showLoading('Checking authentication...');
-
-// Auth state observer
-auth.onAuthStateChanged(user => {
-  if (user) {
-    showLoginScreen(false);
-    showAppUI(true);
-    showAuthPanel(user);
-    hideLoading();
-    if (window.app) window.app.setUser(user);
-  } else {
-    showLoginScreen(true);
-    showAppUI(false);
-    showAuthPanel(null);
-    showLoading('Please log in to use ExpenseSplit');
-    if (window.app) window.app.setUser(null);
-  }
-});
-// --- End Firebase config and auth logic ---
-
 </script>
 
 </div> <!-- your HTML content -->
